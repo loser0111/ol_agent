@@ -1,0 +1,10 @@
+agent:
+  models:
+    - modelName: deepseek-flash
+      baseUrl: https://api.deepseek.com
+      model: deepseek-flash
+      temperature: 0.1
+      contextMaxLength: 1000000
+      underStandImage: false
+      generateImage: false,
+      ModelProtocol: OPENAI

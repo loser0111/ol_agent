@@ -1,7 +1,11 @@
-package com.wyq.agent.online_agent.application.chat_app;
+package com.wyq.agent.online_agent.domain.model.dto;
 
 import com.wyq.agent.online_agent.enums.RespType;
+import lombok.Builder;
+import lombok.Data;
 
+@Data
+@Builder
 public class ChatResp {
     private String respId;          // 响应唯一 ID（UUID），幂等/去重/审计用
     private String chatId;          // 主会话（服务端生成，首次请求返回给前端）

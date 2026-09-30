@@ -1,4 +1,4 @@
-package com.wyq.agent.online_agent.application.chat_app;
+package com.wyq.agent.online_agent.domain.model.dto;
 
 import com.wyq.agent.online_agent.enums.QuestionType;
 

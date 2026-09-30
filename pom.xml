@@ -44,6 +44,18 @@
 			<artifactId>spring-ai-starter-model-openai</artifactId>
 		</dependency>
 
+        <dependency>
+            <groupId>com.anthropic</groupId>
+            <artifactId>anthropic-java</artifactId>
+            <version>0.8.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.openai</groupId>
+            <artifactId>openai-java</artifactId>
+            <version>4.49.0</version>   <!-- 和你 classpath 里的 openai-java-core-4.49.0 一致 -->
+        </dependency>
+
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>

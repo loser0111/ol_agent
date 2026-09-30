@@ -4,11 +4,15 @@ import com.wyq.agent.online_agent.domain.model.model.Model;
 import com.wyq.agent.online_agent.enums.SessionAccessControl;
 import com.wyq.agent.online_agent.enums.SessionStatus;
 import com.wyq.agent.online_agent.enums.SessionType;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 public class Session {
     // 最终需要绑定一个background, 否则模型并不知道当前需要处理的业务对象是哪些。
     // 会话Id
-    Long sessionId;
+    String sessionId;
     // 会话名称
     String sessionName;
     // 会话模型

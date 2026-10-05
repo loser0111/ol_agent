@@ -9,6 +9,8 @@ import com.wyq.agent.online_agent.domain.model.dto.ToolCallData;
 import com.wyq.agent.online_agent.domain.model.dto.ToolResponseData;
 import com.wyq.agent.online_agent.domain.model.messages.BizMessage;
 import com.wyq.agent.online_agent.domain.model.model.Model;
+import com.wyq.agent.online_agent.domain.service.model.ModelService;
+import com.wyq.agent.online_agent.enums.BizError;
 import com.wyq.agent.online_agent.enums.RespType;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
@@ -34,6 +36,9 @@ public class ChatWithModel implements ChatHandler {
     @Autowired
     ToolCallingManager toolCallingManager;
 
+    @Autowired
+    ModelService modelService;
+
     @Override
     public String Name() {
         return "ChatWithModel";
@@ -43,56 +48,47 @@ public class ChatWithModel implements ChatHandler {
     public void Handle(ChatContext context) {
 
         try {
-            // ===== ① 轮次保护：超限 → 标记结束 + 推错误 =====
-            if (context.getCurrentTurns() >= Constant.MAX_ITERATIONS) {
-                context.setIsStop(true);
-                context.setError(new Error("达到最大迭代轮次: " + Constant.MAX_ITERATIONS));
-                emit(context, RespType.ERROR, new BaseResp(-1L, "工具循环超限"));
-                return;   // 外层框架 finally 会 complete()
-            }
-            context.setCurrentTurns(context.getCurrentTurns() + 1);
-
-            // ===== ② 组装 prompt（BizMessage implements Message，直接转型） =====
-            List<Message> messages = new ArrayList<>(context.getMessages());
-            Prompt prompt = new Prompt(messages, options(context.getModel()));
-
             // 复用缓存的 ChatModel（Model 内部懒加载，避免递归重建 SDK 客户端）
-            ChatModel chatModel = context.getModel().buildChatModel();
+            ChatModel chatModel = modelService.buildChatModel(context.getModel());
 
-            // ===== ③ 流式调用 + 聚合判断（单次请求：收集 token 片段 + 聚合判断） =====
-            List<ChatResponse> rawResponses = new ArrayList<>();
-            ChatResponse aggregated = new MessageAggregator()
-                    .aggregate(
-                            chatModel.stream(prompt).doOnNext(rawResponses::add),
-                            ignored -> {})          // 聚合完成回调（暂时不用，留空）
-                    .blockLast();                   // 聚合流最后一条 = 完整响应
 
-            // ===== ④ 分支：有工具调用 / 无工具调用 =====
-            if (aggregated.hasToolCalls()) {
-                // —— 工具调用：推事件 → 执行 → 更新消息 → 递归下一轮 ——
-                emitToolCalls(context, aggregated);
-
-                ToolExecutionResult result = toolCallingManager
-                        .executeToolCalls(prompt, aggregated);
-                emitToolResults(context, result);
-
-                // 全量回写：完整历史 + 工具消息（ToolResponseMessage 走工厂转换）
-                context.setMessages(toBizMessages(result));
-
-                Handle(context);                    // 递归下一轮（currentTurns 兜底）
-            } else {
-                // —— 无工具调用：把聚合前的 token 流原样推给前端 ——
-                rawResponses.stream()
-                        .map(r -> r.getResult().getOutput().getText())
-                        .filter(Objects::nonNull)
-                        .forEach(text -> emit(context, RespType.TOKEN,
-                                new TokenData(text)));
-
-                // 最终回答入会话消息
-                String answer = aggregated.getResult().getOutput().getText();
-                context.getMessages().add(BizMessage.makeAssistantMessage(List.of(), List.of(), answer, Map.of()));
-                context.setIsStop(true);              // 本轮结束标记
+            // 使用循环而不是使用递归
+            for (int i = 0; i < Constant.MAX_ITERATIONS; i++) {
+                // ===== ① 组装 prompt（BizMessage implements Message，直接转型） =====
+                List<Message> messages = new ArrayList<>(context.getMessages());
+                Prompt prompt = new Prompt(messages, options(context.getModel()));
+                // ===== ② 流式调用 + 聚合判断（单次请求：收集 token 片段 + 聚合判断） =====
+                List<ChatResponse> rawResponses = new ArrayList<>();
+                ChatResponse aggregated = new MessageAggregator()
+                        .aggregate(
+                                chatModel.stream(prompt).doOnNext(rawResponses::add),
+                                ignored -> {})          // 聚合完成回调（暂时不用，留空）
+                        .blockLast();                   // 聚合流最后一条 = 完整响应
+                // ===== ④ 分支：有工具调用 / 无工具调用 =====
+                if (aggregated.hasToolCalls()) {
+                    // —— 工具调用：推事件 → 执行 → 更新消息 → 递归下一轮 ——
+                    emitToolCalls(context, aggregated);
+                    ToolExecutionResult result = toolCallingManager
+                            .executeToolCalls(prompt, aggregated);
+                    emitToolResults(context, result);
+                    // 全量回写：完整历史 + 工具消息（ToolResponseMessage 走工厂转换）
+                    context.setMessages(toBizMessages(result));
+                } else {
+                    // —— 无工具调用：把聚合前的 token 流原样推给前端 ——
+                    rawResponses.stream()
+                            .map(r -> r.getResult().getOutput().getText())
+                            .filter(Objects::nonNull)
+                            .forEach(text -> emit(context, RespType.TOKEN,
+                                    new TokenData(text)));
+                    // 最终回答入会话消息
+                    String answer = aggregated.getResult().getOutput().getText();
+                    context.getMessages().add(BizMessage.makeAssistantMessage(List.of(), List.of(), answer, Map.of()));
+                    context.setIsStop(true);              // 本轮结束标记
+                }
             }
+            context.setIsStop(true);
+            context.setError(new Error("达到最大迭代轮次: " + Constant.MAX_ITERATIONS));
+            emit(context, RespType.ERROR, new BaseResp(-1L, "工具循环超限"));
         } catch (Exception e) {
             // ===== ⑤ 异常兜底：结束会话 + 推错误 =====
             context.setIsStop(true);
@@ -107,10 +103,11 @@ public class ChatWithModel implements ChatHandler {
     /** 统一推事件 */
     private void emit(ChatContext ctx, RespType type, Object data) {
         ctx.getSink().tryEmitNext(ChatResp.builder()
-                .chatId(ctx.getChatReq().getChatId())
+                .chatId(ctx.getSessionId())
                 .type(type)
                 .data(data)
                 .timestamp(System.currentTimeMillis())
+                .baseResp(new BaseResp(BizError.SUCCESS.getCode(), BizError.SUCCESS.getMessage()))
                 .build());
     }
 

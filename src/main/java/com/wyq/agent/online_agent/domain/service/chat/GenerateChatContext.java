@@ -23,7 +23,11 @@ public class GenerateChatContext {
         this.messageRepo = messageRepo;
     }
 
-    // 请求会话的参数
+    /**
+     * 构建会话需要用到的参数，包括工具列表，系统提示词，message等信息
+     * @param req
+     * @return
+     */
     public ChatContext generateChatContext(ChatReq req) {
         ChatContext context = new ChatContext();
         Session session = null;
@@ -32,15 +36,11 @@ public class GenerateChatContext {
         } else {
             session = sessionRepo.findBySessionId(req.getChatId());
         }
-
         // 查询会话
         context.setSession(session);
-
         context.setModel(session.getModel());
-
         // 会话历史
         context.setMessages(messageRepo.findBySessionId(session.getSessionId()));
-
         return context;
     }
 }

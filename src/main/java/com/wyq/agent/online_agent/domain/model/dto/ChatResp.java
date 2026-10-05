@@ -1,11 +1,15 @@
 package com.wyq.agent.online_agent.domain.model.dto;
 
 import com.wyq.agent.online_agent.enums.RespType;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ChatResp {
     private String respId;          // 响应唯一 ID（UUID），幂等/去重/审计用
     private String chatId;          // 主会话（服务端生成，首次请求返回给前端）
@@ -14,6 +18,7 @@ public class ChatResp {
     private long timestamp;         // 毫秒时间戳
     private Object data;            // 载荷（按 type 强转/反序列化）
     private String message;         // 人类可读说明（错误信息/状态说明，可选）
+    private BaseResp baseResp;
 }
 
 // 对话类

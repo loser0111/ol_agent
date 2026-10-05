@@ -1,5 +1,8 @@
 package com.wyq.agent.online_agent.enums;
 
+import lombok.Getter;
+
+@Getter
 public class BizError {
 
     long code;
@@ -16,5 +19,6 @@ public class BizError {
     public static final BizError DEFAULT_ERROR = new BizError(-1L, "DEFAULT_ERROR");
 
     // 业务错误码：-50XX
+    public static final BizError INVALID_REQ_PARAMETER = new BizError(-5001, "invalid request parameter");
 
 }

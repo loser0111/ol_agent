@@ -6,5 +6,5 @@ agent:
       temperature: 0.1
       contextMaxLength: 1000000
       underStandImage: false
-      generateImage: false,
+      generateImage: false
       ModelProtocol: OPENAI

@@ -19,8 +19,6 @@ public class ReadyToChat implements ChatHandler{
 
     @Override
     public void Handle(ChatContext context) {
-        // 开始按照模型进行执行
-        // 加载模型内容
         return;
     }
 }

@@ -1,6 +1,7 @@
 package com.wyq.agent.online_agent.domain.model.dto;
 
 import com.wyq.agent.online_agent.enums.RequestType;
+import com.wyq.agent.online_agent.enums.SessionAccessControl;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,4 +22,6 @@ public class ChatReq {
     String questionnaireId;                  // QUESTIONNAIRE：必填
     List<Answer> answers;                  // QUESTIONNAIRE：整体提交
     String ModelName; // 这里是模型交互的名称选项
+    SessionAccessControl sessionAccessControl;
+    Base base;
 }

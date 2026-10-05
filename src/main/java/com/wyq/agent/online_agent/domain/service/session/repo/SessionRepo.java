@@ -30,6 +30,14 @@ public class SessionRepo {
         return session;
     }
 
+    /**
+     * 这里首次
+     * @param model
+     * @param sessionAccessControl
+     * @param sessionType
+     * @param sessionStatus
+     * @return
+     */
     public Session createSession(Model model, SessionAccessControl sessionAccessControl,
                               SessionType sessionType, SessionStatus sessionStatus) {
         // 创建一个session

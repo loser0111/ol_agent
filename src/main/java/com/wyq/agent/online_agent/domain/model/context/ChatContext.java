@@ -51,7 +51,6 @@ public class ChatContext {
      * 追加Message
      */
 
-
     public synchronized void AddMessage(BizMessage message) {
         int no = CollectionUtils.isEmpty(messages) ? 0: messages.size();
         message.setNo(no + 1);

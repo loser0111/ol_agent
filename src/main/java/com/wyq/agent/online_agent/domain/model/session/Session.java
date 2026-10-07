@@ -17,6 +17,8 @@ public class Session {
     String sessionName;
     // 会话模型
     Model model;
+    // uId
+    String uId;
     // 会话的权限控制
     SessionAccessControl accessControl;
     // 这两个不属于session的范畴, 而是属于内容的范畴

@@ -1,6 +1,8 @@
 package com.wyq.agent.online_agent.consts;
 
 public class Constant {
+
+    public static final String COORDINATOR_SYSTEM_PROMPT = "AGENT.md";
     // 一次会话当中模型调用工具的最大轮次限制
     public static final int MAX_ITERATIONS = 100;
 

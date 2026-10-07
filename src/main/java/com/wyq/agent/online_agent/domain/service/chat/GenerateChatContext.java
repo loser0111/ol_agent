@@ -28,19 +28,16 @@ public class GenerateChatContext {
      * @param req
      * @return
      */
-    public ChatContext generateChatContext(ChatReq req) {
-        ChatContext context = new ChatContext();
-        Session session = null;
-        if (Strings.isBlank(req.getChatId())) {
-            session = sessionRepo.createSession();
-        } else {
-            session = sessionRepo.findBySessionId(req.getChatId());
-        }
-        // 查询会话
-        context.setSession(session);
-        context.setModel(session.getModel());
-        // 会话历史
-        context.setMessages(messageRepo.findBySessionId(session.getSessionId()));
-        return context;
-    }
+//    public ChatContext generateChatContext(ChatReq req) {
+//        ChatContext context = new ChatContext();
+//        Session session = null;
+//
+//        session = sessionRepo.createSession();
+//        // 查询会话
+//        context.setSession(session);
+//        context.setModel(session.getModel());
+//        // 会话历史
+//        context.setMessages(messageRepo.findBySessionId(session.getSessionId()));
+//        return context;
+//    }
 }

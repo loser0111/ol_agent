@@ -7,6 +7,7 @@ package com.wyq.agent.online_agent.config;
 // agent.models[0].model=glm-5.3
 
 import com.wyq.agent.online_agent.domain.model.model.Model;
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,21 @@ public class ModelConfiguration {
      * 配置文件中配置的模型
      */
     private List<Model> models = new ArrayList<>();
+
+    @PostConstruct
+    public void init() {
+        System.out.println(">>> [DIAG] ModelConfiguration.models.size = " + (models == null ? -1 : models.size()));
+        if (models != null) {
+            for (Model m : models) {
+                System.out.println(">>> [DIAG] modelName=" + m.getModelName()
+                        + " apiKey=" + (m.getApiKey() == null ? "NULL" : "SET")
+                        + " baseUrl=" + m.getBaseUrl()
+                        + " protocol=" + m.getProtocol()
+                        + " temp=" + m.getTemperature()
+                        + " hash=" + System.identityHashCode(m));
+            }
+        }
+    }
     /**
      * 通过模型名称获取模型本身
      * @param modelName
@@ -30,6 +46,7 @@ public class ModelConfiguration {
      */
     public Model findByName(String modelName) {
         for (Model model : models) {
+            System.out.println(model.getModelName() + "<>" + modelName);
             if (Objects.equals(model.getModelName(), modelName)) {
                 return model;
             }

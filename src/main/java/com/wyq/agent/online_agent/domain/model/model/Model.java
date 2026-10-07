@@ -13,7 +13,6 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 
-import static com.wyq.agent.online_agent.consts.Constant.DEFAULT_CONTENT_MAX_LENGTH;
 
 @Getter
 @Setter
@@ -27,4 +26,19 @@ public class Model {
     private Boolean underStandImage; // 可以理解图片信息
     private Boolean generateImage; // 可以生成图片
     private ModelProtocol protocol; // 模型通讯协议
+
+    @Override
+    public String toString() {
+        return "Model{" +
+                "Name='" + Name + '\'' +
+                ", baseUrl='" + baseUrl + '\'' +
+                ", apiKey='" + apiKey + '\'' +
+                ", modelName='" + modelName + '\'' +
+                ", temperature=" + temperature +
+                ", ContextMaxLength=" + ContextMaxLength +
+                ", underStandImage=" + underStandImage +
+                ", generateImage=" + generateImage +
+                ", protocol=" + protocol +
+                '}';
+    }
 }

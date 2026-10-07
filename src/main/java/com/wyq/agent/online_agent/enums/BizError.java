@@ -3,7 +3,7 @@ package com.wyq.agent.online_agent.enums;
 import lombok.Getter;
 
 @Getter
-public class BizError {
+public class BizError extends Exception {
 
     long code;
 
@@ -20,5 +20,8 @@ public class BizError {
 
     // 业务错误码：-50XX
     public static final BizError INVALID_REQ_PARAMETER = new BizError(-5001, "invalid request parameter");
-
+    public static final BizError INVALID_USER_INFO = new BizError(-5002, "invalid uid");
+    public static final BizError INVALID_MODEL_NAME = new BizError(-5003, "invalid model name");
+    public static final BizError INVALID_ACCESS_MODE = new BizError(-5003, "invalid access mode");
+    public static final BizError INVALID_SESSION_INFO = new BizError(-5003, "invalid session info");
 }

@@ -21,7 +21,26 @@ public class ChatReq {
     Boolean granted;         // PERMISSION
     String questionnaireId;                  // QUESTIONNAIRE：必填
     List<Answer> answers;                  // QUESTIONNAIRE：整体提交
-    String ModelName; // 这里是模型交互的名称选项
+    String modelName;                        // 这里是模型交互的名称选项
     SessionAccessControl sessionAccessControl;
     Base base;
+
+    @Override
+    public String toString() {
+        return "ChatReq{" +
+                "chatId='" + chatId + '\'' +
+                ", subChatId='" + subChatId + '\'' +
+                ", type=" + type +
+                ", content='" + content + '\'' +
+                ", choiceId='" + choiceId + '\'' +
+                ", optionId='" + optionId + '\'' +
+                ", grantId='" + grantId + '\'' +
+                ", granted=" + granted +
+                ", questionnaireId='" + questionnaireId + '\'' +
+                ", answers=" + answers +
+                ", modelName='" + modelName + '\'' +
+                ", sessionAccessControl=" + sessionAccessControl +
+                ", base=" + base +
+                '}';
+    }
 }

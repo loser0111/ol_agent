@@ -11,9 +11,11 @@ import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.stereotype.Component;
 
 import static com.wyq.agent.online_agent.consts.Constant.DEFAULT_CONTENT_MAX_LENGTH;
 
+@Component
 public class ModelService {
     /**
      * 数据转化成ChatModel
@@ -42,6 +44,11 @@ public class ModelService {
 
     public ChatModel buildOpenAIModel(Model model) {
         // ① 官方 SDK 客户端（openai-java 已随 starter 传递进来，无需显式依赖）
+        System.out.println(">>> [DIAG] buildOpenAIModel: modelName=" + model.getModelName()
+                + ", apiKey=" + (model.getApiKey() == null ? "NULL" : "SET(len=" + model.getApiKey().length() + ")")
+                + ", baseUrl=" + model.getBaseUrl()
+                + ", protocol=" + model.getProtocol()
+                + ", hash=" + System.identityHashCode(model));
         OpenAIClient client = OpenAIOkHttpClient.builder()
                 .apiKey(model.getApiKey())
                 .baseUrl(model.getBaseUrl() == null
@@ -57,6 +64,11 @@ public class ModelService {
                         .temperature(model.getTemperature())
                         .maxTokens(model.getContextMaxLength() == null
                                 ? DEFAULT_CONTENT_MAX_LENGTH : model.getContextMaxLength())
+                        .apiKey(model.getApiKey())
+                        .baseUrl(model.getBaseUrl() == null
+                                ? "https://api.openai.com"
+                                : model.getBaseUrl())
+                        .maxTokens(8192)
                         .build())
                 .build();
     }

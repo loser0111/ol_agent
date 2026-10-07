@@ -1,6 +1,7 @@
 package com.wyq.agent.online_agent.domain.service.agent;
 
 import com.wyq.agent.online_agent.config.ModelConfiguration;
+import com.wyq.agent.online_agent.consts.Constant;
 import com.wyq.agent.online_agent.domain.model.agent.Agent;
 import com.wyq.agent.online_agent.domain.model.context.ChatContext;
 import com.wyq.agent.online_agent.domain.model.dto.ChatReq;
@@ -17,11 +18,20 @@ import com.wyq.agent.online_agent.enums.SessionStatus;
 import com.wyq.agent.online_agent.enums.SessionType;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.ai.tool.ToolCallback;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StreamUtils;
+import reactor.core.publisher.Sinks;
 import tools.jackson.core.io.CharTypes;
 
+import java.io.Console;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
+@Component
 public class AgentService {
 
     private final ModelConfiguration modelConfiguration;
@@ -39,6 +49,25 @@ public class AgentService {
         this.sessionRepo = sessionRepo;
         this.messageRepo = messageRepo;
     }
+
+    /**
+     * 是否是主agent
+     * @param agent
+     * @return
+     */
+    public boolean isCoordinator(Agent agent) {
+        return Objects.nonNull(agent) && AgentType.COORDINATOR.equals(agent.getAgentType());
+    }
+
+    /**
+     * 是否是子agent
+     * @param agent
+     * @return
+     */
+    public boolean isWorker(Agent agent) {
+        return Objects.nonNull(agent) && AgentType.WORKER.equals(agent.getAgentType());
+    }
+
 
     /**
      * 生成一个主Agent
@@ -59,6 +88,10 @@ public class AgentService {
         agent.setMaxMessages(maxMessages);
         agent.setMaxTurns(maxTurns);
         agent.setSystemPrompt(prompt);
+
+        // 创建向前端推送的sink
+        Sinks.Many<ChatResp> sink = Sinks.many().unicast().onBackpressureBuffer();
+        agent.setSink(sink);
         return agent;
     }
 
@@ -105,11 +138,14 @@ public class AgentService {
     public ChatContext convert2ChatContext(Agent agent, ChatReq req) {
         ChatContext chatContext = new ChatContext();
         chatContext.setChatReq(req);
+        // 创建推送给到前端的sink
+        chatContext.setSink(agent.getSink());
         // 加载session
         Session session = getSession(agent, req);
         // 加载历史信息
         List<BizMessage> messages = getMessages(session.getSessionId());
         // 设置数据
+        chatContext.setSystemPrompt(agent.getSystemPrompt());
         chatContext.setModel(agent.getModel());
         chatContext.setIsStop(false);
         chatContext.setSession(session);
@@ -127,7 +163,9 @@ public class AgentService {
      */
     public Session getSession(Agent agent, ChatReq chatReq) {
         if (Strings.isBlank(chatReq.getChatId())) {
-            sessionRepo.createSession(agent.getModel(), chatReq.getSessionAccessControl(), SessionType.COORDINATOR, SessionStatus.READY_TO_TALK);
+            sessionRepo.createSession(agent.getModel(), chatReq.getSessionAccessControl(),
+                    isCoordinator(agent) ? SessionType.COORDINATOR : SessionType.WORKER,
+                    SessionStatus.READY_TO_TALK);
         }
         return sessionRepo.findBySessionId(chatReq.getChatId());
     }
@@ -139,5 +177,18 @@ public class AgentService {
      */
     public List<BizMessage> getMessages(String sessionId) {
         return messageRepo.findBySessionId(sessionId);
+    }
+
+    /**
+     * // 加载agent.md文件，作为系统提示词
+     * @return
+     * @throws IOException
+     */
+    public String coordinatorSystemPrompt() throws IOException {
+        // ① 构建 Agent 时加载
+        String systemPrompt = StreamUtils.copyToString(
+                new ClassPathResource(Constant.COORDINATOR_SYSTEM_PROMPT).getInputStream(),
+                StandardCharsets.UTF_8);
+        return systemPrompt;
     }
 }

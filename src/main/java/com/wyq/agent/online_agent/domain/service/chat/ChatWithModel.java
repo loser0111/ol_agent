@@ -28,8 +28,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+/**
+ * 直接和大模型对话的阶段
+ */
 @Component
 public class ChatWithModel implements ChatHandler {
 
@@ -57,13 +61,15 @@ public class ChatWithModel implements ChatHandler {
                 // ===== ① 组装 prompt（BizMessage implements Message，直接转型） =====
                 List<Message> messages = new ArrayList<>(context.getMessages());
                 Prompt prompt = new Prompt(messages, options(context.getModel()));
-                // ===== ② 流式调用 + 聚合判断（单次请求：收集 token 片段 + 聚合判断） =====
+
                 List<ChatResponse> rawResponses = new ArrayList<>();
-                ChatResponse aggregated = new MessageAggregator()
+                AtomicReference<ChatResponse> aggregatedRef = new AtomicReference<>();
+                new MessageAggregator()
                         .aggregate(
                                 chatModel.stream(prompt).doOnNext(rawResponses::add),
-                                ignored -> {})          // 聚合完成回调（暂时不用，留空）
-                        .blockLast();                   // 聚合流最后一条 = 完整响应
+                                aggregatedRef::set)   // ★ 完整响应在这里
+                        .blockLast();
+                ChatResponse aggregated = aggregatedRef.get();
                 // ===== ④ 分支：有工具调用 / 无工具调用 =====
                 if (aggregated.hasToolCalls()) {
                     // —— 工具调用：推事件 → 执行 → 更新消息 → 递归下一轮 ——
@@ -163,10 +169,12 @@ public class ChatWithModel implements ChatHandler {
     private OpenAiChatOptions options(Model model) {
         return OpenAiChatOptions.builder()
                 .model(model.getModelName())
+                .baseUrl(model.getBaseUrl())
                 .temperature(model.getTemperature() == null
                         ? 0.7 : model.getTemperature().floatValue())
                 .maxTokens(model.getContextMaxLength() == null
                         ? Constant.DEFAULT_CONTENT_MAX_LENGTH : model.getContextMaxLength())
+                .apiKey(model.getApiKey())
                 .build();
     }
 }

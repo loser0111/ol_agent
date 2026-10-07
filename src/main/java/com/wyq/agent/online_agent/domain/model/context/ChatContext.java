@@ -23,6 +23,9 @@ public class ChatContext {
     // 会话相应
     ChatResp chatResp;
 
+    // 系统提示词
+    String systemPrompt;
+
     // sessionId
     String sessionId;
 

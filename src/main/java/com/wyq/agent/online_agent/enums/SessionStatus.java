@@ -1,5 +1,8 @@
 package com.wyq.agent.online_agent.enums;
 
+import lombok.Getter;
+
+@Getter
 public enum SessionStatus {
     // 可以再次发起会话
     READY_TO_TALK(1),
@@ -12,5 +15,15 @@ public enum SessionStatus {
     SessionStatus(int code) {
         this.code = code;
     }
+
     final int code;
+
+    public static SessionStatus findByCode(Integer code) {
+        for (SessionStatus value : SessionStatus.values()) {
+            if(value.code == code) {
+                return value;
+            }
+        }
+        return null;
+    }
 }

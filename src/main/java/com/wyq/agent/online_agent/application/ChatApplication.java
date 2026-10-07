@@ -1,10 +1,16 @@
 package com.wyq.agent.online_agent.application;
 
 import com.wyq.agent.online_agent.domain.model.agent.Agent;
+import com.wyq.agent.online_agent.domain.model.dto.BaseResp;
 import com.wyq.agent.online_agent.domain.model.dto.ChatReq;
 import com.wyq.agent.online_agent.domain.model.dto.ChatResp;
 import com.wyq.agent.online_agent.domain.service.agent.AgentService;
+import com.wyq.agent.online_agent.domain.service.tool.impl.ReadFileTool;
+import com.wyq.agent.online_agent.enums.BizError;
 import org.antlr.v4.runtime.misc.Pair;
+import org.apache.logging.log4j.util.Strings;
+import org.springframework.ai.support.ToolCallbacks;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
@@ -16,10 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-import static com.wyq.agent.online_agent.enums.BizError.DEFAULT_ERROR;
+import static com.wyq.agent.online_agent.enums.BizError.*;
 
 /**
  * 和大模型对话的application
@@ -31,29 +38,50 @@ public class ChatApplication {
     @Autowired
     private AgentService agentService;
 
-    private
+    @Autowired
+    private ReadFileTool readFileTool;
 
     @PostMapping(value="/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     Flux<ChatResp> chat(@RequestBody ChatReq req) throws IOException {
+
         System.out.println(req.toString());
         ChatResp resp = new ChatResp();
 
+        BizError checkError = check(req);
+        if (Objects.nonNull(checkError)) {
+            resp.setBaseResp(BaseResp.builder().code(checkError.getCode()).message(checkError.getMessage()).build());
+            return Flux.just(resp);
+        }
+
         // 获取系统提示词
         String prompt = agentService.coordinatorSystemPrompt();
-
+        // TODO 补充本次会话工具和skills信息
+        // TODO 补充本次会话的memory信息
         // 生成代理会话的agent
-        Agent coordinator = agentService.constructOneCoordinator(prompt, req.getModelName(), List.of(),
+        Agent coordinator = agentService.constructOneCoordinator(prompt, req.getModelName(), Arrays.asList(ToolCallbacks.from(readFileTool)),
                 50, 100);
         // 大模型会话
-        resp = agentService.chat(coordinator, req);
+        try{
+            resp = agentService.chat(coordinator, req);
+        } catch (BizError bizError) {
+            resp.setBaseResp(BaseResp.builder().code(bizError.getCode()).message(bizError.getMessage()).build());
+        } catch (RuntimeException error) {
+            resp.setBaseResp(BaseResp.builder().code(DEFAULT_ERROR.getCode()).message(error.getMessage()).build());
+        }
 
         return Flux.just(resp);
     }
-    public Pair<Long, String> check(ChatReq req) {
+    public BizError check(ChatReq req) {
         if (Objects.isNull(req)) {
-            return new Pair<>(DEFAULT_ERROR.getCode(), DEFAULT_ERROR.getMessage());
+            return DEFAULT_ERROR;
         }
-        return new Pair<>(0L, "SUCCESS");
+        if (Strings.isBlank(req.getSessionId())) {
+            return INVALID_SESSION_INFO;
+        }
+        if (Strings.isBlank(req.getUId())) {
+            return INVALID_USER_INFO;
+        }
+        return null;
     }
 }
 

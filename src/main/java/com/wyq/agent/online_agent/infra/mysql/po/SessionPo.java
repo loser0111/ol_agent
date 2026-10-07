@@ -1,7 +1,6 @@
-package com.wyq.agent.online_agent.infra.mysql.Po;
+package com.wyq.agent.online_agent.infra.mysql.po;
 
 import lombok.Data;
-import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 

@@ -3,15 +3,13 @@ package com.wyq.agent.online_agent.domain.service.session.repo;
 import com.wyq.agent.online_agent.config.ModelConfiguration;
 import com.wyq.agent.online_agent.domain.model.model.Model;
 import com.wyq.agent.online_agent.domain.model.session.Session;
-import com.wyq.agent.online_agent.domain.service.model.ModelService;
 import com.wyq.agent.online_agent.enums.SessionAccessControl;
 import com.wyq.agent.online_agent.enums.SessionStatus;
 import com.wyq.agent.online_agent.enums.SessionType;
-import com.wyq.agent.online_agent.infra.mysql.Po.SessionPo;
+import com.wyq.agent.online_agent.infra.mysql.po.SessionPo;
 import com.wyq.agent.online_agent.infra.mysql.mapper.SessionMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 import java.util.UUID;

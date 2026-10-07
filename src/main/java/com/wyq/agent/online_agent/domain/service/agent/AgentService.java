@@ -11,6 +11,7 @@ import com.wyq.agent.online_agent.domain.model.model.Model;
 import com.wyq.agent.online_agent.domain.model.session.Session;
 import com.wyq.agent.online_agent.domain.service.chat.ReactAgentService;
 import com.wyq.agent.online_agent.domain.service.message.repo.MessageRepo;
+import com.wyq.agent.online_agent.domain.service.session.SessionService;
 import com.wyq.agent.online_agent.domain.service.session.repo.SessionRepo;
 import com.wyq.agent.online_agent.enums.AgentType;
 import com.wyq.agent.online_agent.enums.BizError;
@@ -38,15 +39,16 @@ public class AgentService {
 
     private final ReactAgentService reactAgentService;
 
-    private final SessionRepo sessionRepo;
 
     private final MessageRepo messageRepo;
 
+    private final SessionService sessionService;
 
-    public AgentService(ModelConfiguration modelConfiguration, ReactAgentService reactAgentService, SessionRepo sessionRepo, MessageRepo messageRepo) {
+
+    public AgentService(ModelConfiguration modelConfiguration, ReactAgentService reactAgentService, SessionService sessionService, MessageRepo messageRepo) {
         this.modelConfiguration = modelConfiguration;
         this.reactAgentService = reactAgentService;
-        this.sessionRepo = sessionRepo;
+        this.sessionService = sessionService;
         this.messageRepo = messageRepo;
     }
 
@@ -88,7 +90,7 @@ public class AgentService {
         agent.setMaxMessages(maxMessages);
         agent.setMaxTurns(maxTurns);
         agent.setSystemPrompt(prompt);
-
+        agent.setTools(tools);
         // 创建向前端推送的sink
         Sinks.Many<ChatResp> sink = Sinks.many().unicast().onBackpressureBuffer();
         agent.setSink(sink);
@@ -122,7 +124,7 @@ public class AgentService {
      * 对话，这里使用后的是
      * @return
      */
-    public ChatResp chat(Agent agent, ChatReq req) {
+    public ChatResp chat(Agent agent, ChatReq req) throws BizError {
         // agent调用chatService实现内容
         ChatContext context = convert2ChatContext(agent, req);
         // 大模型对话
@@ -135,7 +137,7 @@ public class AgentService {
      * @param req
      * @return
      */
-    public ChatContext convert2ChatContext(Agent agent, ChatReq req) {
+    public ChatContext convert2ChatContext(Agent agent, ChatReq req) throws BizError{
         ChatContext chatContext = new ChatContext();
         chatContext.setChatReq(req);
         // 创建推送给到前端的sink
@@ -146,6 +148,7 @@ public class AgentService {
         List<BizMessage> messages = getMessages(session.getSessionId());
         // 设置数据
         chatContext.setSystemPrompt(agent.getSystemPrompt());
+        chatContext.setTools(agent.getTools());
         chatContext.setModel(agent.getModel());
         chatContext.setIsStop(false);
         chatContext.setSession(session);
@@ -161,13 +164,20 @@ public class AgentService {
      * @param chatReq
      * @return
      */
-    public Session getSession(Agent agent, ChatReq chatReq) {
-        if (Strings.isBlank(chatReq.getChatId())) {
-            sessionRepo.createSession(agent.getModel(), chatReq.getSessionAccessControl(),
-                    isCoordinator(agent) ? SessionType.COORDINATOR : SessionType.WORKER,
-                    SessionStatus.READY_TO_TALK);
+    public Session getSession(Agent agent, ChatReq chatReq) throws BizError{
+        if (Strings.isBlank(chatReq.getSessionId())) {
+            throw BizError.INVALID_SESSION_INFO;
         }
-        return sessionRepo.findBySessionId(chatReq.getChatId());
+
+        Session session = sessionService.findSessionBySessionId(chatReq.getSessionId());
+        if (Objects.isNull(session)) {
+            throw BizError.INVALID_SESSION_INFO;
+        }
+
+        if (!Objects.equals(session.getUId(), chatReq.getUId())) {
+            throw BizError.INVALID_USER_INFO;
+        }
+        return session;
     }
 
     /**

@@ -11,8 +11,9 @@ import java.util.List;
 @Setter
 // 会话信息
 public class ChatReq {
-    String chatId;
-    String subChatId;
+    String uId;
+    String sessionId;
+    String subSessionId;
     RequestType type;               // 新增 QUESTIONNAIRE
     String content;
     String choiceId;
@@ -28,8 +29,9 @@ public class ChatReq {
     @Override
     public String toString() {
         return "ChatReq{" +
-                "chatId='" + chatId + '\'' +
-                ", subChatId='" + subChatId + '\'' +
+                "uId='" + uId + '\'' +
+                "sessionId='" + sessionId + '\'' +
+                ", subSessionId='" + subSessionId + '\'' +
                 ", type=" + type +
                 ", content='" + content + '\'' +
                 ", choiceId='" + choiceId + '\'' +

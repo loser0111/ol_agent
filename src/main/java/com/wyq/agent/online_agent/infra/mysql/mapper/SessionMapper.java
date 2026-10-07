@@ -1,6 +1,6 @@
 package com.wyq.agent.online_agent.infra.mysql.mapper;
 
-import com.wyq.agent.online_agent.infra.mysql.Po.SessionPo;
+import com.wyq.agent.online_agent.infra.mysql.po.SessionPo;
 import org.apache.ibatis.annotations.*;
 
 import java.util.List;

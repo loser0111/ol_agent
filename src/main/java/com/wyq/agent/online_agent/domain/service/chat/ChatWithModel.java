@@ -9,10 +9,13 @@ import com.wyq.agent.online_agent.domain.model.dto.ToolCallData;
 import com.wyq.agent.online_agent.domain.model.dto.ToolResponseData;
 import com.wyq.agent.online_agent.domain.model.messages.BizMessage;
 import com.wyq.agent.online_agent.domain.model.model.Model;
+import com.wyq.agent.online_agent.domain.service.message.MessageService;
 import com.wyq.agent.online_agent.domain.service.model.ModelService;
 import com.wyq.agent.online_agent.enums.BizError;
 import com.wyq.agent.online_agent.enums.RespType;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -21,6 +24,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.model.tool.ToolExecutionResult;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -43,6 +47,9 @@ public class ChatWithModel implements ChatHandler {
     @Autowired
     ModelService modelService;
 
+    @Autowired
+    MessageService messageService;
+
     @Override
     public String Name() {
         return "ChatWithModel";
@@ -50,18 +57,16 @@ public class ChatWithModel implements ChatHandler {
 
     @Override
     public void Handle(ChatContext context) {
-
         try {
             // 复用缓存的 ChatModel（Model 内部懒加载，避免递归重建 SDK 客户端）
             ChatModel chatModel = modelService.buildChatModel(context.getModel());
-
-
             // 使用循环而不是使用递归
             for (int i = 0; i < Constant.MAX_ITERATIONS; i++) {
                 // ===== ① 组装 prompt（BizMessage implements Message，直接转型） =====
-                List<Message> messages = new ArrayList<>(context.getMessages());
-                Prompt prompt = new Prompt(messages, options(context.getModel()));
-
+                List<Message> messages = context.getMessages().stream()
+                        .map(BizMessage::toSpringAiMessage)
+                        .collect(Collectors.toCollection(ArrayList::new));
+                Prompt prompt = new Prompt(messages, options(context));
                 List<ChatResponse> rawResponses = new ArrayList<>();
                 AtomicReference<ChatResponse> aggregatedRef = new AtomicReference<>();
                 new MessageAggregator()
@@ -77,8 +82,13 @@ public class ChatWithModel implements ChatHandler {
                     ToolExecutionResult result = toolCallingManager
                             .executeToolCalls(prompt, aggregated);
                     emitToolResults(context, result);
-                    // 全量回写：完整历史 + 工具消息（ToolResponseMessage 走工厂转换）
-                    context.setMessages(toBizMessages(result));
+                    // ★ 只取本次新增：历史(BizMessage)跳过，新增的(spring-ai 类型)转换
+                    List<BizMessage> newMsgs = result.conversationHistory().stream()
+                            .filter(m -> !(m instanceof BizMessage))     // 关键过滤
+                            .map(m -> this.toBizMessage(context.getSessionId(), m))
+                            .collect(Collectors.toList());
+                    newMsgs.forEach(context::AddMessage);
+                    newMsgs.forEach(messageService::AddMessage);
                 } else {
                     // —— 无工具调用：把聚合前的 token 流原样推给前端 ——
                     rawResponses.stream()
@@ -88,8 +98,11 @@ public class ChatWithModel implements ChatHandler {
                                     new TokenData(text)));
                     // 最终回答入会话消息
                     String answer = aggregated.getResult().getOutput().getText();
-                    context.getMessages().add(BizMessage.makeAssistantMessage(List.of(), List.of(), answer, Map.of()));
-                    context.setIsStop(true);              // 本轮结束标记
+                    BizMessage message = BizMessage.makeAssistantMessage(context.getSessionId(), List.of(), List.of(), answer, Map.of());
+                    context.getMessages().add(message);
+                    messageService.AddMessage(message);
+                    context.setIsStop(true); // 本轮结束标记
+                    return;
                 }
             }
             context.setIsStop(true);
@@ -134,14 +147,14 @@ public class ChatWithModel implements ChatHandler {
     }
 
     /** ToolExecutionResult 完整消息历史 → BizMessage 列表（全量替换用） */
-    private List<BizMessage> toBizMessages(ToolExecutionResult result) {
+    private List<BizMessage> toBizMessages(String sessionId, ToolExecutionResult result) {
         return result.conversationHistory().stream()
-                .map(this::toBizMessage)
+                .map(m -> this.toBizMessage(sessionId, m))
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /** 框架 Message → BizMessage（工具响应消息走工厂方法，保留 responses 结构） */
-    private BizMessage toBizMessage(Message message) {
+    private BizMessage toBizMessage(String sessionId, Message message) {
         // ① 本身就是 BizMessage（如历史里的 user/assistant）→ 原样保留
         if (message instanceof BizMessage biz) {
             return biz;
@@ -150,13 +163,27 @@ public class ChatWithModel implements ChatHandler {
         // ② 工具响应消息 → 用工厂方法（携带 responses 列表）
         if (message instanceof ToolResponseMessage toolResponse) {
             return BizMessage.makeToolResponseMessage(
+                    sessionId,
                     toolResponse.getResponses(),
                     message.getMetadata());
         }
 
         // ③ 其他（System/User/Assistant/ToolCall）→ 通用转换
+        if (message instanceof AssistantMessage am) {
+            // ★ 补 toolCalls：工具调用消息要保留调用参数
+            return BizMessage.builder()
+                    .sessionId(sessionId)
+                    .type(MessageType.ASSISTANT)
+                    .content(am.getText())
+                    .metadata(am.getMetadata())
+                    .toolCalls(am.getToolCalls())
+                    .build();
+        }
+
+        // ③ 其他（System/User/Assistant/ToolCall）→ 通用转换
         return BizMessage.builder()
                 .type(message.getMessageType())
+                .sessionId(sessionId)
                 .content(message.getText())
                 .metadata(message.getMetadata())
                 .build();
@@ -166,7 +193,9 @@ public class ChatWithModel implements ChatHandler {
      * 从本次会话的 Model 配置组装选项
      * 注意：prompt 级 options 必须传全（Anthropic 2.0 不合并模型默认值），baseUrl 已在客户端配置
      */
-    private OpenAiChatOptions options(Model model) {
+    private OpenAiChatOptions options(ChatContext context) {
+        Model model = context.getModel();
+        List<ToolCallback> tools = context.getTools();
         return OpenAiChatOptions.builder()
                 .model(model.getModelName())
                 .baseUrl(model.getBaseUrl())
@@ -175,6 +204,8 @@ public class ChatWithModel implements ChatHandler {
                 .maxTokens(model.getContextMaxLength() == null
                         ? Constant.DEFAULT_CONTENT_MAX_LENGTH : model.getContextMaxLength())
                 .apiKey(model.getApiKey())
+                .toolCallbacks(tools == null ? new ToolCallback[0]
+                        : tools.toArray(new ToolCallback[0]))   // ★ 挂工具定义
                 .build();
     }
 }

@@ -59,4 +59,10 @@ public class SessionService {
         }
         return sessionRepo.deleteSession(sessionId);
     }
+    /**
+     * 查找sessionId
+     */
+    public Session findSessionBySessionId(String sessionId) throws BizError{
+        return sessionRepo.findBySessionId(sessionId);
+    }
 }

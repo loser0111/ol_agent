@@ -25,7 +25,7 @@ public class ReactAgentService {
 
     // 走chat的流程编排
     public ChatResp chat(ChatContext context) {
-        // 加载历史数据 & 加载工具内容 & 加载skills & 加载文档摘要
+        // 加载历史数据 & 加载工具内容 & 加载skills & 加载对话的数据摘要
         readyToChat.Handle(context);
         // 调用大模型进行多轮对话
         chatWithModel.Handle(context);

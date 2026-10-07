@@ -7,6 +7,7 @@ import com.wyq.agent.online_agent.domain.model.model.Model;
 import com.wyq.agent.online_agent.domain.model.session.Session;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Sinks;
 
@@ -38,6 +39,9 @@ public class ChatContext {
     // 本次会话的message
     List<BizMessage> messages;
 
+    // 本次会话可以使用的tools
+    List<ToolCallback> tools;
+
     // 是否已经结束本次的会话了
     Boolean isStop;
 
@@ -55,8 +59,6 @@ public class ChatContext {
      */
 
     public synchronized void AddMessage(BizMessage message) {
-        int no = CollectionUtils.isEmpty(messages) ? 0: messages.size();
-        message.setNo(no + 1);
         messages.add(message);
     }
 

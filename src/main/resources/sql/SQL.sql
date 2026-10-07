@@ -21,3 +21,20 @@ CREATE TABLE t_session (
 -- 验证
 SHOW TABLES;
 DESC t_session;
+
+
+CREATE TABLE t_message (
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  message_id  VARCHAR(64),
+  session_id  VARCHAR(64) NOT NULL,
+  type        VARCHAR(32),
+  content     TEXT,
+  metadata    TEXT,
+  tool_calls  TEXT,
+  responses   TEXT,
+  media       TEXT,
+  create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  is_delete   TINYINT(1) DEFAULT 0,
+  extra       TEXT,
+  KEY idx_session_no (session_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

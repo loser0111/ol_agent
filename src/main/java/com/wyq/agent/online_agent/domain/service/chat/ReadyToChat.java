@@ -44,6 +44,7 @@ public class ReadyToChat implements ChatHandler {
             context.setMessages(new ArrayList<>(List.of(systemMessage, userMessage)));
             messageService.AddMessage(systemMessage);
             messageService.AddMessage(userMessage);
+            nameSessionWithReq(context);
         } else {
             // 非第一次会话那么添加本次会话的内容给到大模型
             BizMessage userMessage = BizMessage.makeUserMessage(context.getSessionId(), context.getChatReq().getContent());

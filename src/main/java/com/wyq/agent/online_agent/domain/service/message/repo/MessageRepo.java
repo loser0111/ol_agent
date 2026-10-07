@@ -11,9 +11,12 @@ import org.springframework.ai.content.Media;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Repository
@@ -48,6 +51,34 @@ public class MessageRepo {
         return messages;
     }
 
+    /**
+     * 分页查找某个会话的消息（供历史展示用）。
+     *
+     * <p>分页语义：第 1 页 = 最近的一页（先按 id 倒序取该页），
+     * 返回前再翻转为【时间正序】，让前端从上到下顺序渲染。</p>
+     *
+     * @param sessionId 会话ID
+     * @param offset    偏移量（从 0 开始）
+     * @param limit     每页条数
+     * @return 按时间正序的消息列表
+     */
+    public List<BizMessage> findBySessionId(String sessionId, int offset, int limit) {
+        List<BizMessage> messages = new ArrayList<>();
+        for (MessagePo po : messageMapper.findBySessionIdPage(sessionId, offset, limit)) {
+            messages.add(convert2Message(po));
+        }
+        // mapper 按 id DESC 取页，翻转成时间正序
+        Collections.reverse(messages);
+        return messages;
+    }
+
+    /**
+     * 查询某个会话的消息总数（分页用）
+     */
+    public long countBySessionId(String sessionId) {
+        return messageMapper.countBySessionId(sessionId);
+    }
+
     // ===== 转换 =====
 
     private MessagePo convert2Po(BizMessage msg) {
@@ -76,7 +107,13 @@ public class MessageRepo {
                 .toolCalls(fromJson(po.getToolCalls(), new TypeReference<List<AssistantMessage.ToolCall>>() {}))
                 .responses(fromJson(po.getResponses(), new TypeReference<List<ToolResponseMessage.ToolResponse>>() {}))
                 .media(fromJson(po.getMedia(), new TypeReference<List<Media>>() {}))
+                .createTime(toEpochMilli(po.getCreateTime()))
                 .build();
+    }
+
+    /** Timestamp → epoch 毫秒（null 安全） */
+    private Long toEpochMilli(Timestamp timestamp) {
+        return Objects.isNull(timestamp) ? null : timestamp.getTime();
     }
 
     private String toJson(Object obj) {

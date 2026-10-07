@@ -28,11 +28,11 @@ public class FileService {
     // read_file：读取工作区文本文件内容（带行号），支持 offset/limit 分片
     // =====================================================================
 
-    @Tool(description = "读取工作区内某个文本文件的内容，返回带行号的文本。大文件可用 offset/limit 分片读取；查找内容请优先用 grep")
+    @Tool(description = "读取工作区内某个文本文件的内容，返回带行号的文本。默认读取前 300 行，单次最多 2000 行；读大文件的某段用 offset/limit。查找内容请优先用 grep（不要为了找一段代码而整读文件）")
     public String readFile(
             @ToolParam(required = true, description = "要读取的文件路径（相对工作区目录或绝对路径）") String path,
             @ToolParam(description = "起始行号（从 1 开始，可选）") Integer offset,
-            @ToolParam(description = "最多读取行数（默认 2000）") Integer limit) throws IOException {
+            @ToolParam(description = "最多读取行数（默认 300，单次上限 2000）") Integer limit) throws IOException {
 
         Path filePath = support.resolve(path);
         String content = support.readTextSafe(filePath);
@@ -41,6 +41,11 @@ public class FileService {
 
         int start = (offset == null || offset < 1) ? 1 : offset;
         int maxLines = (limit == null || limit < 1) ? FileToolSupport.DEFAULT_READ_LIMIT : limit;
+        // 单次读取行数封顶，避免"一次读超大文件"把上下文直接撑爆（超出部分由截断兜底）
+        boolean clamped = maxLines > FileToolSupport.MAX_READ_LINES;
+        if (clamped) {
+            maxLines = FileToolSupport.MAX_READ_LINES;
+        }
         if (start > total) {
             return support.rel(filePath) + " 共 " + total + " 行，起始行 " + start + " 超出范围";
         }
@@ -50,6 +55,9 @@ public class FileService {
             end = total;
         }
         StringBuilder sb = new StringBuilder();
+        if (clamped) {
+            sb.append("（limit 已限制为单次最多 ").append(FileToolSupport.MAX_READ_LINES).append(" 行）\n");
+        }
         sb.append(support.rel(filePath)).append("（共 ").append(total).append(" 行，显示 ")
           .append(start).append("-").append(end).append("）\n");
         for (int i = start - 1; i < end; i++) {

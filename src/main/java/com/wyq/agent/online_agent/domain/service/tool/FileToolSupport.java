@@ -22,10 +22,11 @@ public class FileToolSupport {
 
     // ===== 各类上限（对齐 Go 版）=====
     public static final long MAX_READ_FILE_BYTES = 2L << 20;    // 单文件读取上限 2MB
-    public static final int DEFAULT_READ_LIMIT = 2000;          // read_file 默认返回行数
+    public static final int DEFAULT_READ_LIMIT = 300;         // read_file 默认返回行数（与工具描述、AGENT.md 保持一致）
+    public static final int MAX_READ_LINES = 2000;             // read_file 单次返回行数上限
     public static final long MAX_WRITE_FILE_BYTES = 2L << 20;   // 单文件写入上限 2MB
     public static final int MAX_GLOB_RESULTS = 200;             // glob 结果上限
-    public static final int MAX_GREP_FILES = 20000;             // grep 扫描文件数上限
+    public static final int MAX_GREP_FILES = 100;             // grep 扫描文件数上限
     public static final long MAX_GREP_FILE_BYTES = 2L << 20;    // grep 单文件扫描上限
     public static final int MAX_GREP_RESULTS = 200;             // grep 结果上限
     public static final int MAX_DIR_ENTRIES = 500;              // list_dir 条目上限
@@ -82,11 +83,11 @@ public class FileToolSupport {
 
     // ===== 文件读取辅助 =====
 
-    /** 粗判二进制：前 8KB 含 NUL，或控制字符占比过高。 */
+    /** 粗判二进制：前 8KB 含 NUL，或控制字符占比过高。字节按无符号比较，避免 UTF-8 多字节字符被误判。 */
     public boolean looksBinary(byte[] data) {
         int headLen = Math.min(data.length, 8192);
         for (int i = 0; i < headLen; i++) {
-            if (data[i] == 0) {
+            if ((data[i] & 0xFF) == 0) {
                 return true;
             }
         }
@@ -95,7 +96,7 @@ public class FileToolSupport {
         }
         int ctrl = 0;
         for (int i = 0; i < headLen; i++) {
-            byte b = data[i];
+            int b = data[i] & 0xFF;   // 无符号化：0x80-0xFF（UTF-8 多字节）不参与控制字符统计
             if (b < 0x09 || (b > 0x0d && b < 0x20)) {
                 ctrl++;
             }

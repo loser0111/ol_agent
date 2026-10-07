@@ -154,6 +154,9 @@ public class AgentService {
         chatContext.setSession(session);
         chatContext.setMessages(messages);
         chatContext.setCurrentTurns(0);
+        // ★ 记忆窗口：此前 Agent.maxMessages 只写不读，导致历史无上限累积
+        chatContext.setMaxMessages(agent.getMaxMessages() > 0
+                ? agent.getMaxMessages() : Constant.KEEP_RECENT_MESSAGES);
         chatContext.setSessionId(session.getSessionId());
         return chatContext;
     }

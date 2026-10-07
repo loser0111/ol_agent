@@ -6,10 +6,12 @@ import com.wyq.agent.online_agent.domain.model.dto.ChatReq;
 import com.wyq.agent.online_agent.domain.model.dto.ChatResp;
 import com.wyq.agent.online_agent.domain.service.agent.AgentService;
 import com.wyq.agent.online_agent.domain.service.tool.FileService;
+import com.wyq.agent.online_agent.domain.service.tool.TruncatingToolCallback;
 import com.wyq.agent.online_agent.enums.BizError;
 import com.wyq.agent.online_agent.enums.RespType;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.ai.support.ToolCallbacks;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +27,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static com.wyq.agent.online_agent.enums.BizError.*;
 
@@ -57,9 +60,14 @@ public class ChatApplication {
         String prompt = agentService.coordinatorSystemPrompt();
         // TODO 补充本次会话工具和skills信息
         // TODO 补充本次会话的memory信息
+        // 文件工具挂载：外层包 TruncatingToolCallback，限制单次工具结果大小，防止上下文被大文件撑爆
+        ToolCallback[] fileCallbacks = ToolCallbacks.from(fileService);
+        List<ToolCallback> wrappedFileTools = Arrays.stream(fileCallbacks)
+                .map(TruncatingToolCallback::new)
+                .collect(Collectors.toList());
         // 生成代理会话的agent（constructOneCoordinator 内部创建推流 sink）
         Agent coordinator = agentService.constructOneCoordinator(prompt, req.getModelName(),
-                Arrays.asList(ToolCallbacks.from(fileService)),
+                wrappedFileTools,
                 50, 100);
         Sinks.Many<ChatResp> sink = coordinator.getSink();
 

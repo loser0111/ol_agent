@@ -5,7 +5,7 @@ import com.wyq.agent.online_agent.domain.model.dto.BaseResp;
 import com.wyq.agent.online_agent.domain.model.dto.ChatReq;
 import com.wyq.agent.online_agent.domain.model.dto.ChatResp;
 import com.wyq.agent.online_agent.domain.service.agent.AgentService;
-import com.wyq.agent.online_agent.domain.service.tool.impl.ReadFileTool;
+import com.wyq.agent.online_agent.domain.service.tool.FileService;
 import com.wyq.agent.online_agent.enums.BizError;
 import org.antlr.v4.runtime.misc.Pair;
 import org.apache.logging.log4j.util.Strings;
@@ -39,7 +39,7 @@ public class ChatApplication {
     private AgentService agentService;
 
     @Autowired
-    private ReadFileTool readFileTool;
+    private FileService fileService;
 
     @PostMapping(value="/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     Flux<ChatResp> chat(@RequestBody ChatReq req) throws IOException {
@@ -58,7 +58,8 @@ public class ChatApplication {
         // TODO 补充本次会话工具和skills信息
         // TODO 补充本次会话的memory信息
         // 生成代理会话的agent
-        Agent coordinator = agentService.constructOneCoordinator(prompt, req.getModelName(), Arrays.asList(ToolCallbacks.from(readFileTool)),
+        Agent coordinator = agentService.constructOneCoordinator(prompt, req.getModelName(),
+                Arrays.asList(ToolCallbacks.from(fileService)),
                 50, 100);
         // 大模型会话
         try{

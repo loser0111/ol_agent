@@ -22,7 +22,8 @@ public class FileToolSupport {
 
     // ===== 各类上限（对齐 Go 版）=====
     public static final long MAX_READ_FILE_BYTES = 2L << 20;    // 单文件读取上限 2MB
-    public static final int DEFAULT_READ_LIMIT = 50;          // read_file 默认返回行数
+    public static final int DEFAULT_READ_LIMIT = 300;         // read_file 默认返回行数（与工具描述、AGENT.md 保持一致）
+    public static final int MAX_READ_LINES = 2000;             // read_file 单次返回行数上限
     public static final long MAX_WRITE_FILE_BYTES = 2L << 20;   // 单文件写入上限 2MB
     public static final int MAX_GLOB_RESULTS = 200;             // glob 结果上限
     public static final int MAX_GREP_FILES = 100;             // grep 扫描文件数上限

@@ -28,4 +28,8 @@ public interface SessionMapper {
 
     @Update("UPDATE t_session SET is_delete = 1 WHERE session_id = #{sessionId}")
     int delete(@Param("sessionId") String sessionId);
+
+    @Update("UPDATE t_session SET session_name = #{sessionName} WHERE session_id = #{sessionId}")
+    int name(@Param("sessionId") String sessionId, @Param("sessionName") String sessionName);
+
 }

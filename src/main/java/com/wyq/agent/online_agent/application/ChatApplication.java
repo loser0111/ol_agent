@@ -7,19 +7,19 @@ import com.wyq.agent.online_agent.domain.model.dto.ChatResp;
 import com.wyq.agent.online_agent.domain.service.agent.AgentService;
 import com.wyq.agent.online_agent.domain.service.tool.FileService;
 import com.wyq.agent.online_agent.enums.BizError;
-import org.antlr.v4.runtime.misc.Pair;
+import com.wyq.agent.online_agent.enums.RespType;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.ai.support.ToolCallbacks;
-import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.Mapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -57,20 +57,33 @@ public class ChatApplication {
         String prompt = agentService.coordinatorSystemPrompt();
         // TODO 补充本次会话工具和skills信息
         // TODO 补充本次会话的memory信息
-        // 生成代理会话的agent
+        // 生成代理会话的agent（constructOneCoordinator 内部创建推流 sink）
         Agent coordinator = agentService.constructOneCoordinator(prompt, req.getModelName(),
                 Arrays.asList(ToolCallbacks.from(fileService)),
                 50, 100);
-        // 大模型会话
-        try{
-            resp = agentService.chat(coordinator, req);
-        } catch (BizError bizError) {
-            resp.setBaseResp(BaseResp.builder().code(bizError.getCode()).message(bizError.getMessage()).build());
-        } catch (RuntimeException error) {
-            resp.setBaseResp(BaseResp.builder().code(DEFAULT_ERROR.getCode()).message(error.getMessage()).build());
-        }
+        Sinks.Many<ChatResp> sink = coordinator.getSink();
 
-        return Flux.just(resp);
+        // 异步执行阻塞式对话：ChatWithModel 会把 TOKEN/TOOL_CALL/TOOL_RESPONSE/ERROR
+        // 实时推入 sink 并流向客户端；对话结束后补推最终事件（DONE/ERROR）并 complete 关闭流。
+        // 注意：返回 sink.asFlux() 立即响应，中间事件无需等待整个对话完成。
+        Mono.fromCallable(() -> agentService.chat(coordinator, req))
+                .subscribeOn(Schedulers.boundedElastic())
+                .doOnNext(sink::tryEmitNext)          // 最终事件：正常 DONE / 已封装 ERROR
+                .doOnSuccess(v -> sink.tryEmitComplete())  // 成功结束 → 关闭 SSE 流（Mono 无 doOnComplete）
+                .doOnError(err -> {
+                    // 兜底：对话链路抛出未预期异常时，也推一个错误事件并结束
+                    sink.tryEmitNext(ChatResp.builder()
+                            .chatId(req.getSessionId())
+                            .type(RespType.ERROR)
+                            .data(new BaseResp(DEFAULT_ERROR.getCode(),
+                                    err.getMessage() == null ? err.toString() : err.getMessage()))
+                            .timestamp(System.currentTimeMillis())
+                            .build());
+                    sink.tryEmitComplete();
+                })
+                .subscribe();
+
+        return sink.asFlux();
     }
     public BizError check(ChatReq req) {
         if (Objects.isNull(req)) {

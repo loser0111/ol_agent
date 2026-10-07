@@ -68,6 +68,10 @@ public class SessionRepo {
         return convert2Session(sessionPo);
     }
 
+    public int name(String sessionId, String sessionName) {
+        return sessionMapper.name(sessionId, sessionName);
+    }
+
     /**
      * 相互转化的函数
      * @param sessionPo

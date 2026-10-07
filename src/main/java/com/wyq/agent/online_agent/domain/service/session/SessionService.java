@@ -65,4 +65,8 @@ public class SessionService {
     public Session findSessionBySessionId(String sessionId) throws BizError{
         return sessionRepo.findBySessionId(sessionId);
     }
+
+    public int nameSessionBySessionId(String sessionId, String sessionName) {
+        return sessionRepo.name(sessionId, sessionName);
+    }
 }

@@ -1,8 +1,10 @@
 package com.wyq.agent.online_agent.domain.service.chat;
 
+import com.networknt.schema.utils.Strings;
 import com.wyq.agent.online_agent.domain.model.context.ChatContext;
 import com.wyq.agent.online_agent.domain.model.messages.BizMessage;
 import com.wyq.agent.online_agent.domain.service.message.MessageService;
+import com.wyq.agent.online_agent.domain.service.session.SessionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -25,6 +27,9 @@ public class ReadyToChat implements ChatHandler {
     @Autowired
     MessageService messageService;
 
+    @Autowired
+    SessionService sessionService;
+
     @Override
     public String Name() {
         return "ReadyToChat";
@@ -45,5 +50,17 @@ public class ReadyToChat implements ChatHandler {
             context.getMessages().add(userMessage);
             messageService.AddMessage(userMessage);
         }
+    }
+
+    /**
+     * 开始处理会话session信息
+     * @param chatContext
+     */
+    public void nameSessionWithReq(ChatContext chatContext) {
+        String sessionName = chatContext.getChatReq().getContent();
+        if (sessionName.length() > 20) {
+            sessionName = sessionName.substring(0, 20)+ "...";
+        }
+        sessionService.nameSessionBySessionId(chatContext.getSessionId(), sessionName);
     }
 }

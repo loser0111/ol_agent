@@ -11,6 +11,9 @@ import com.wyq.agent.online_agent.infra.mysql.mapper.SessionMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -68,6 +71,28 @@ public class SessionRepo {
         return convert2Session(sessionPo);
     }
 
+    /**
+     * 查询某个用户的会话列表（分页）
+     * @param uId    用户ID
+     * @param offset 偏移量（从 0 开始）
+     * @param limit  每页条数
+     * @return 按更新时间倒序的会话列表
+     */
+    public List<Session> findByUId(String uId, int offset, int limit) {
+        List<Session> sessions = new ArrayList<>();
+        for (SessionPo po : sessionMapper.findByUIdPage(uId, offset, limit)) {
+            sessions.add(convert2Session(po));
+        }
+        return sessions;
+    }
+
+    /**
+     * 查询某个用户的会话总数（分页用）
+     */
+    public long countByUId(String uId) {
+        return sessionMapper.countByUId(uId);
+    }
+
     public int name(String sessionId, String sessionName) {
         return sessionMapper.name(sessionId, sessionName);
     }
@@ -87,6 +112,8 @@ public class SessionRepo {
             session.setAccessControl(SessionAccessControl.findByCode(sessionPo.getAccessControl()));
             session.setUId(sessionPo.getUId());
             session.setModel(modelConfiguration.findByName(sessionPo.getModelName()));
+            session.setCreateTime(toEpochMilli(sessionPo.getCreateTime()));
+            session.setUpdateTime(toEpochMilli(sessionPo.getUpdateTime()));
             return session;
         }
         return null;
@@ -118,5 +145,10 @@ public class SessionRepo {
      */
     public int deleteSession(String sessionId) {
         return sessionMapper.delete(sessionId);
+    }
+
+    /** Timestamp → epoch 毫秒（null 安全） */
+    private Long toEpochMilli(Timestamp timestamp) {
+        return Objects.isNull(timestamp) ? null : timestamp.getTime();
     }
 }

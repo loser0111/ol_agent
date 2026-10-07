@@ -29,4 +29,8 @@ public class Session {
     SessionStatus sessionStatus;
     // 会话类型
     SessionType sessionType;
+    // 创建时间（epoch 毫秒，只读展示用，来自 t_session.create_time）
+    Long createTime;
+    // 更新时间（epoch 毫秒，只读展示用，来自 t_session.update_time）
+    Long updateTime;
 }

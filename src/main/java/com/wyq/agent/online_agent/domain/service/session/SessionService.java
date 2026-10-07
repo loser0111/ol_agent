@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.ObjectError;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -68,5 +69,24 @@ public class SessionService {
 
     public int nameSessionBySessionId(String sessionId, String sessionName) {
         return sessionRepo.name(sessionId, sessionName);
+    }
+
+    /**
+     * 查询某个用户的会话列表（分页，按更新时间倒序）
+     *
+     * @param uId    用户ID
+     * @param offset 偏移量（从 0 开始）
+     * @param limit  每页条数
+     * @return 会话列表；无数据返回空列表
+     */
+    public List<Session> listSessions(String uId, int offset, int limit) {
+        return sessionRepo.findByUId(uId, offset, limit);
+    }
+
+    /**
+     * 查询某个用户的会话总数（分页用）
+     */
+    public long countSessions(String uId) {
+        return sessionRepo.countByUId(uId);
     }
 }

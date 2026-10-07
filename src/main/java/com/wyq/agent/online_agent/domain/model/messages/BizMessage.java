@@ -17,6 +17,7 @@ import java.util.Map;
 @Setter
 @Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class BizMessage implements Message {
     // 这里包装了所有的子类。这里的设置是否可以优化呢
     private String messageId;
@@ -27,6 +28,8 @@ public class BizMessage implements Message {
     private List<AssistantMessage.ToolCall> toolCalls;
     protected List<ToolResponseMessage.ToolResponse> responses;
     protected List<Media> media;
+    // 创建时间（epoch 毫秒，只读展示用，来自 t_message.create_time）
+    private Long createTime;
 
     public BizMessage(String messageId, String sessionId, MessageType type, String content, Map<String, Object> metadata, List<AssistantMessage.ToolCall> toolCallList, List<ToolResponseMessage.ToolResponse> responses, List<Media> media) {
         this.messageId = messageId;
